@@ -1,11 +1,207 @@
 "use client";
-import {useState} from"react";
-import "./auth.css";
-const docs=[["Dr. Maria Santos","General Medicine","MS"],["Dr. Juan Dela Cruz","Pediatrics","JD"],["Dr. Anna Reyes","Dermatology","AR"],["Dr. Michael Tan","Cardiology","MT"]];
-const appts=[["A001","Dr. Maria Santos","Sep 10, 2026","9:30 AM","Confirmed"],["A002","Dr. Juan Dela Cruz","Sep 15, 2026","2:00 PM","Pending"],["A003","Dr. Anna Reyes","Sep 20, 2026","10:00 AM","Confirmed"],["A004","Dr. Maria Santos","Aug 28, 2026","11:00 AM","Completed"]];
-function Av({x}:{x:string}){return <i className="av">{x}</i>} function St({x}:{x:string}){return <span className={'st '+x.toLowerCase()}>{x}</span>} function Title({x}:{x:string}){return <div className="title"><h1>{x}</h1><p>EMC Clinic management portal</p></div>}
-function Table({rows=appts}:{rows?:string[][]}){return <div className="table"><table><thead><tr><th>ID</th><th>Doctor / Patient</th><th>Date</th><th>Time</th><th>Status</th><th>Action</th></tr></thead><tbody>{rows.map((r,i)=><tr key={i}>{r.map((v,j)=><td key={j}>{["Confirmed","Pending","Completed"].includes(v)?<St x={v}/>:v}</td>)}<td><button className="link">View</button></td></tr>)}</tbody></table><p>Showing 1 to {rows.length} entries</p></div>}
-export default function Home(){const[auth,setAuth]=useState<"splash"|"login"|"register"|"admin"|"portal">("splash");const[role,setRole]=useState("Patient");const[page,setPage]=useState("Dashboard");const[booked,setBooked]=useState(false);if(auth!=="portal")return <Auth screen={auth} enter={(r)=>{setRole(r);setPage("Dashboard");setAuth("portal")}} choose={setAuth}/>;const nav=role==="Patient"?["Dashboard","Find a Doctor","My Appointments","Medical Records","My Profile"]:["Dashboard","Patients","Doctors","Appointments","Schedules","Medical Records","Reports","Settings"];const go=(x:string)=>{setPage(x);setBooked(false)};return <main><aside><div className="brand">♡ <b>CareWell</b> Clinic</div><nav>{nav.map((x,i)=><button onClick={()=>go(x)} className={page===x?"on":""} key={x}><span>{["⌂","⌕","▣","▤","♙","◷","◔","⚙"][i]}</span>{x}</button>)}</nav><button className="switch" onClick={()=>{setRole(role==="Patient"?"Admin":"Patient");go("Dashboard")}}>⇄ Switch to {role==="Patient"?"Admin":"Patient"}</button></aside><section className="work"><header><b>CareWell Clinic <em>/ {page}</em></b><div>♧　<Av x={role==="Patient"?"EG":"AD"}/></div></header><article>{role==="Patient"?<Patient page={page} go={go} booked={booked} setBooked={setBooked}/>:<Admin page={page}/>}</article></section></main>}
-function Auth({screen,enter,choose}:{screen:string;enter:(x:string)=>void;choose:(x:"splash"|"login"|"register"|"admin")=>void}){if(screen==="splash")return <div className="splash"><div className="splash-card"><div className="splash-logo">♡</div><h1>CareWell Clinic</h1><p>Your Health, Our Priority</p><button onClick={()=>choose("login")}>Get Started</button></div></div>;const admin=screen==="admin",register=screen==="register";return <div className="auth"><div className="auth-box"><div className="auth-brand">♡ <b>CareWell</b> Clinic</div><h1>{admin?"Admin Login":register?"Create an Account":"Welcome Back!"}</h1><p>{admin?"Sign in to manage your clinic":register?"Fill in your details to get started":"Please login to your account"}</p>{register&&<><label>Full Name<input placeholder="Enter your full name"/></label><label>Date of Birth<input type="date"/></label><label>Gender<select><option>Select gender</option><option>Female</option><option>Male</option></select></label><label>Contact Number<input placeholder="09XX XXX XXXX"/></label></>}<label>Email Address<input type="email" placeholder={admin?"admin@carewell.com":"Enter your email"}/></label><label>Password<input type="password" placeholder="••••••••"/></label>{!register&&!admin&&<button className="forgot">Forgot Password?</button>}<button className="primary" onClick={()=>enter(admin?"Admin":"Patient")}>{register?"Create Account":"Login"}</button><p className="auth-foot">{register?"Already have an account? ":admin?"Patient account? ":"Don't have an account? "}<button onClick={()=>choose(register||admin?"login":"register")}>{register||admin?"Login":"Sign Up"}</button></p>{!admin&&<button className="admin-link" onClick={()=>choose("admin")}>Admin Login</button>}</div></div>}
-function Patient({page,go,booked,setBooked}:{page:string;go:(x:string)=>void;booked:boolean;setBooked:(x:boolean)=>void}){if(page==="Find a Doctor")return <><Title x="Find a Doctor"/><div className="filters"><input placeholder="Search doctor or specialization..."/><select><option>All Specializations</option></select></div><div className="docs">{docs.map(d=><div className="doc" key={d[0]}><Av x={d[2]}/><div><b>{d[0]}</b><p>{d[1]}</p><strong>★ 4.9 <small>(120 reviews)</small></strong><em>Available Today</em></div><button onClick={()=>go("My Appointments")}>Book appointment</button></div>)}</div></>;if(page==="My Appointments")return booked?<div className="confirm"><div>✓</div><h1>Appointment Request Sent!</h1><p>Your appointment has been successfully submitted.</p><section><b>Appointment details</b><p>Doctor <strong>Dr. Maria Santos</strong></p><p>Date <strong>September 10, 2026</strong></p><p>Time <strong>9:30 AM</strong></p><p>Status <St x="Pending"/></p></section><button onClick={()=>go("My Appointments")}>View My Appointments</button></div>:<><Title x="My Appointments"/><div className="tabs">Upcoming　 Pending　 Completed　 Cancelled</div><Table/><div className="banner"><div><b>Need a consultation?</b><p>Book an appointment with a CareWell doctor today.</p></div><button onClick={()=>setBooked(true)}>+ Book appointment</button></div></>;if(page==="Medical Records")return <><Title x="Medical Records"/>{["Common Cold","Fever","Skin Allergy"].map((x,i)=><div className="record" key={x}><b>Sep {8-i*8}, 2026</b><span><b>{docs[i][0]}</b><p>Diagnosis: {x}</p></span><span>Prescription<p>Paracetamol 500mg</p></span><button>View details</button></div>)}</>;if(page==="My Profile")return <><Title x="My Profile"/><div className="profile"><Av x="EG"/><div>{["Full Name","Email Address","Date of Birth","Address","Gender","Blood Type"].map(x=><label key={x}>{x}<input defaultValue={x==="Full Name"?"Eliza Mae Garcia":"eliza@gmail.com"}/></label>)}</div><button>Save Changes</button></div></>;return <><div className="welcome"><div><p>Monday, September 7, 2026</p><h1>Good morning, Eliza! 👋</h1><p>How can we help with your health today?</p></div><Av x="EG"/></div><div className="cards">{[["▣","Book Appointment","Find a Doctor"],["⌕","Find a Doctor","Find a Doctor"],["▤","My Appointments","My Appointments"],["♥","Medical Records","Medical Records"]].map(x=><button onClick={()=>go(x[2])} key={x[1]}><i>{x[0]}</i><b>{x[1]}</b><span>View your information</span></button>)}</div><div className="panel"><h2>Upcoming Appointment</h2><div className="up"><Av x="MS"/><span><b>Dr. Maria Santos</b><p>General Medicine</p></span><strong>September 10, 2026<br/><small>9:30 AM</small></strong><St x="Confirmed"/></div></div></>}
-function Admin({page}:{page:string}){if(page==="Dashboard")return <><Title x="Welcome back, Admin! 👋"/><div className="stats">{[["Total Patients","245"],["Total Doctors","12"],["Today's Appointments","18"],["Pending Appointments","7"]].map(x=><div key={x[0]}><p>{x[0]}</p><h2>{x[1]}</h2><span>+12 this month</span></div>)}</div><div className="panel"><h2>Today’s Appointments</h2><Table/></div></>;if(page==="Reports")return <><Title x="Reports"/><div className="stats">{[["Total Appointments","156"],["Completed","82"],["Cancelled","12"],["Pending","62"]].map(x=><div key={x[0]}><p>{x[0]}</p><h2>{x[1]}</h2><span>This month</span></div>)}</div><div className="panel"><h2>Appointments Overview</h2><div className="chart">▁ ▃ ▂ ▆ ▄ ▇ ▃</div></div></>;const people=docs.map((d,i)=>["P00"+(i+1),d[0],"0912 222 333",d[0].toLowerCase().replaceAll(" ","")+"@gmail.com"]);return <><Title x={page==="Schedules"?"Doctor Schedules":page}/><div className="filters"><input placeholder={'Search '+page.toLowerCase()+'...'}/><button>+ Add New</button></div><Table rows={page==="Appointments"?appts:people}/></>}
+import { useState, useEffect } from "react";
+import AuthScreens from "./AuthScreens";
+import { Av } from "./ui";
+import { PatientDashboard, FindDoctor, DoctorProfile, BookAppointment, MyAppointments, MedicalRecords, PatientProfile } from "./PatientViews";
+import { AdminDashboard } from "./AdminDashboard";
+import { PatientManagement, DoctorManagement, AppointmentManagement } from "./AdminCRUD";
+import { ScheduleManagement, MedicalRecordsManagement, Reports, AdminSettings } from "./AdminViews";
+import { DoctorPortal } from "./DoctorPortal";
+import { getDoctors, Doctor } from "./supabase";
+import { MessageBoard } from "./MessageBoard";
+import { ActivityLog } from "./ActivityLog";
+
+type Role = "Patient" | "Admin" | "Doctor";
+
+const PATIENT_NAV = [
+  { label: "Dashboard", icon: "🏠" },
+  { label: "Find a Doctor", icon: "🔍" },
+  { label: "My Appointments", icon: "📋" },
+  { label: "Medical Records", icon: "📁" },
+  { label: "Message Board", icon: "💬" },
+  { label: "My Profile", icon: "👤" },
+];
+
+const ADMIN_NAV = [
+  { label: "Dashboard", icon: "🏠" },
+  { label: "Patients", icon: "👥" },
+  { label: "Doctors", icon: "🩺" },
+  { label: "Appointments", icon: "📋" },
+  { label: "Schedules", icon: "🗓" },
+  { label: "Medical Records", icon: "📁" },
+  { label: "Reports", icon: "📊" },
+  { label: "Message Board", icon: "💬" },
+  { label: "Activity History", icon: "📜" },
+  { label: "Settings", icon: "⚙️" },
+];
+
+const DOCTOR_NAV = [
+  { label: "Dashboard", icon: "🏠" },
+  { label: "My Appointments", icon: "📋" },
+  { label: "My Schedule", icon: "🗓" },
+  { label: "Message Board", icon: "💬" },
+];
+
+export default function Home() {
+  const [authed, setAuthed] = useState(false);
+  const [role, setRole] = useState<Role>("Patient");
+  const [userName, setUserName] = useState("");
+  const [userEmail, setUserEmail] = useState("");
+  const [page, setPage] = useState("Dashboard");
+  const [pageData, setPageData] = useState<unknown>(null);
+  const [allDoctors, setAllDoctors] = useState<Doctor[]>([]);
+  const [doctorRecord, setDoctorRecord] = useState<Doctor | null>(null);
+  const [checking, setChecking] = useState(true);
+
+  // Restore session on page refresh
+  useEffect(() => {
+    import("./supabase").then(({ supabase }) => {
+      supabase.auth.getSession().then(async ({ data }) => {
+        if (data.session) {
+          const email = data.session.user.email ?? "";
+          const { data: doctor } = await supabase.from("doctors").select("name").eq("email", email).limit(1);
+          const restoredRole: Role = email === "admin@carewell.com" ? "Admin" : doctor?.[0] ? "Doctor" : "Patient";
+          const { data: patient } = restoredRole === "Patient" ? await supabase.from("patients").select("name").eq("email", email).limit(1) : { data: null };
+          const restoredName = restoredRole === "Admin" ? "Administrator" : doctor?.[0]?.name || patient?.[0]?.name || data.session.user.user_metadata.full_name || email.split("@")[0];
+          setRole(restoredRole);
+          setUserName(restoredName);
+          setUserEmail(email);
+          setAuthed(true);
+        }
+        setChecking(false);
+      });
+    });
+  }, []);
+
+  useEffect(() => {
+    if (authed) getDoctors().then(r => setAllDoctors(r.data ?? []));
+  }, [authed]);
+
+  useEffect(() => {
+    if (role === "Doctor" && userEmail && allDoctors.length) {
+      const match = allDoctors.find(d => (d as Doctor & { email?: string }).email === userEmail);
+      if (match) setDoctorRecord(match);
+    }
+  }, [role, userEmail, allDoctors]);
+
+  function handleEnter(r: Role, name: string, email: string) {
+    localStorage.setItem("cwRole", r);
+    localStorage.setItem("cwName", name);
+    setRole(r); setUserName(name); setUserEmail(email);
+    setPage("Dashboard"); setPageData(null); setDoctorRecord(null); setAuthed(true);
+  }
+
+  function go(p: string, data?: unknown) {
+    setPage(p); setPageData(data ?? null);
+  }
+
+  function logout() {
+    localStorage.removeItem("cwRole");
+    localStorage.removeItem("cwName");
+    import("./supabase").then(({ supabase }) => supabase.auth.signOut());
+    setAuthed(false); setPage("Dashboard"); setPageData(null);
+  }
+
+  if (checking) return <div style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}><div className="spinner" /></div>;
+
+  if (!authed) return <AuthScreens onEnter={handleEnter} />;
+
+  const nav = role === "Patient" ? PATIENT_NAV : role === "Doctor" ? DOCTOR_NAV : ADMIN_NAV;
+  const initials = userName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() || "U";
+
+  function renderPage() {
+    if (role === "Doctor") {
+      if (page === "Message Board") return <MessageBoard email={userEmail} name={userName} role={role} />;
+      if (!doctorRecord) return (
+        <>
+          <div style={{ marginBottom: 22 }}>
+            <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>Select Your Profile</h1>
+            <p style={{ color: "#8190a5" }}>Which doctor are you?</p>
+          </div>
+          <div className="doctor-list">
+            {allDoctors.map(d => (
+              <div key={d.id} className="doctor-card" style={{ cursor: "pointer" }} onClick={() => setDoctorRecord(d)}>
+                <Av x={d.initials} size="av-lg" />
+                <div className="info"><b>{d.name}</b><p>{d.spec}</p></div>
+                <button className="btn btn-primary btn-sm">Select</button>
+              </div>
+            ))}
+          </div>
+        </>
+      );
+      return <DoctorPortal doctorName={doctorRecord.name} doctorSpec={doctorRecord.spec} doctorInitials={doctorRecord.initials} />;
+    }
+
+    if (role === "Patient") {
+      if (page === "Dashboard") return <PatientDashboard name={userName} go={go} />;
+      if (page === "Find a Doctor") return <FindDoctor go={go} />;
+      if (page === "Doctor Profile") return <DoctorProfile doctor={pageData as Doctor} go={go} />;
+      if (page === "Book Appointment") return <BookAppointment doctor={pageData as Doctor | undefined} allDoctors={allDoctors} patientName={userName} onBooked={() => go("My Appointments")} />;
+      if (page === "My Appointments") return <MyAppointments patientName={userName} />;
+      if (page === "Medical Records") return <MedicalRecords patientName={userName} />;
+      if (page === "Message Board") return <MessageBoard email={userEmail} name={userName} role={role} />;
+      if (page === "My Profile") return <PatientProfile patientName={userName} patientEmail={userEmail} />;
+    }
+
+    if (role === "Admin") {
+      if (page === "Dashboard") return <AdminDashboard go={go} />;
+      if (page === "Patients") return <PatientManagement />;
+      if (page === "Doctors") return <DoctorManagement />;
+      if (page === "Appointments") return <AppointmentManagement />;
+      if (page === "Schedules") return <ScheduleManagement />;
+      if (page === "Medical Records") return <MedicalRecordsManagement />;
+      if (page === "Reports") return <Reports />;
+      if (page === "Message Board") return <MessageBoard email={userEmail} name={userName} role={role} />;
+      if (page === "Activity History") return <ActivityLog />;
+      if (page === "Settings") return <AdminSettings />;
+    }
+
+    return null;
+  }
+
+  return (
+    <main>
+      <aside>
+        <div className="brand">
+          <div className="brand-icon">
+            <img src="/emc-logo.png" alt="logo" style={{ width: 28, height: 28, objectFit: "contain", borderRadius: "50%" }} />
+          </div>
+          <span>CareWell Clinic</span>
+        </div>
+        <nav>
+          {nav.map(({ label, icon }) => (
+            <button
+              key={label}
+              className={page === label || (page === "Doctor Profile" && label === "Find a Doctor") || (page === "Book Appointment" && label === "Find a Doctor") ? "nav-active" : ""}
+              onClick={() => go(label)}
+            >
+              <span style={{ fontSize: 17, width: 22, flexShrink: 0 }}>{icon}</span>
+              <span>{label}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="sidebar-footer">
+          <button className="logout-btn" onClick={logout}>
+            <span style={{ fontSize: 17, width: 22 }}>🚪</span>
+            <span>Logout</span>
+          </button>
+        </div>
+      </aside>
+
+      <div className="work">
+        <header>
+          <div className="header-left">
+            CareWell Clinic <span>/ {page}</span>
+          </div>
+          <div className="header-right">
+            <button className="notif-btn">🔔</button>
+            <Av x={initials} />
+          </div>
+        </header>
+        <article>
+          {renderPage()}
+        </article>
+      </div>
+    </main>
+  );
+}

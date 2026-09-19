@@ -3,16 +3,13 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "CareWell Clinic",
-  description: "Clinic management frontend",
+  description: "Clinic Management System",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="en"
-      className="h-full antialiased"
-    >
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang="en">
+      <body>{children}</body>
     </html>
   );
 }
