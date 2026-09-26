@@ -32,6 +32,7 @@ export function AdminDashboard({ go }: { go: (p: string) => void }) {
   const todayISO = new Date().toISOString().slice(0, 10);
   const today = appts.filter(a => toISO(a.date) === todayISO);
   const pending = appts.filter(a => a.status === "Pending");
+  const completed = appts.filter(a => a.status === "Completed");
   const todayLabel = new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
 
   if (loading) return <Loading />;
@@ -44,12 +45,13 @@ export function AdminDashboard({ go }: { go: (p: string) => void }) {
           <p>{todayLabel}</p>
         </div>
       </div>
-      <div className="stats-grid">
+      <div className="stats-grid-5">
         {[
           ["Total Patients", patients.length, "View all", "Patients"],
           ["Total Doctors", doctors.length, "View all", "Doctors"],
           ["Today's Appointments", today.length, "View all", "Appointments"],
           ["Pending Appointments", pending.length, "View all", "Appointments"],
+          ["Completed Appointments", completed.length, "View all", "Appointments"],
         ].map(([label, val, link, page]) => (
           <div key={label as string} className="stat-card">
             <p>{label as string}</p>
