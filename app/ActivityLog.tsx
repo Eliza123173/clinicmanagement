@@ -21,8 +21,8 @@ export function ActivityLog() {
   return (
     <>
       <div style={{ marginBottom: 22 }}>
-        <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 4 }}>Activity History</h1>
-        <p style={{ color: "#8190a5" }}>Track appointment processing and important system activity.</p>
+        <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 4, color: "#12304A" }}>Activity History</h1>
+        <p style={{ color: "#475569" }}>Track appointment processing and important system activity.</p>
       </div>
       <div className="filters">
         <input value={search} placeholder="Search activity..." onChange={e => setSearch(e.target.value)} />
@@ -36,16 +36,16 @@ export function ActivityLog() {
             <tbody>
               {visible.map(log => (
                 <tr key={log.id}>
-                  <td style={{ whiteSpace: "nowrap", color: "#8190a5", fontSize: 12 }}>{new Date(log.created_at).toLocaleString()}</td>
+                  <td style={{ whiteSpace: "nowrap", color: "#475569", fontSize: 12 }}>{new Date(log.created_at).toLocaleString()}</td>
                   <td><b>{log.actor_name}</b></td>
                   <td>{log.actor_role}</td>
                   <td><b>{log.action}</b></td>
-                  <td style={{ color: "#5a6a80" }}>{log.details}</td>
+                  <td style={{ color: "#475569" }}>{log.details}</td>
                   <td>{log.target_name || "—"}</td>
                 </tr>
               ))}
               {visible.length === 0 && (
-                <tr><td colSpan={6} style={{ textAlign: "center", padding: 24, color: "#8190a5" }}>No activity recorded yet.</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: "center", padding: 24, color: "#475569" }}>No activity recorded yet.</td></tr>
               )}
             </tbody>
           </table>

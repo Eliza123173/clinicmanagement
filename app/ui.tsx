@@ -58,7 +58,14 @@ export function Alert({ type, msg }: { type: "success" | "error"; msg: string })
 }
 
 export function EmptyState({ msg }: { msg: string }) {
-  return <div className="empty-state"><div className="empty-icon">📭</div><p>{msg}</p></div>;
+  return (
+    <div className="empty-state">
+      <div className="empty-icon">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3h18v18H3z" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+      </div>
+      <p>{msg}</p>
+    </div>
+  );
 }
 
 export function PageHeader({ title, sub, action }: { title: string; sub?: string; action?: React.ReactNode }) {

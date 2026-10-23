@@ -31,7 +31,7 @@ export function DoctorDashboard({ doctorName, doctorSpec, doctorInitials }: { do
   return (
     <>
       <div className="welcome-bar">
-        <div><h1>Welcome, {doctorName}! 👋</h1><p>{doctorSpec}</p></div>
+        <div><h1>Welcome, {doctorName}! 👋</h1><p style={{ color: "#e0f7fa" }}>{doctorSpec}</p></div>
         <Av x={doctorInitials} size="av-lg" />
       </div>
       <div className="stats-grid">
@@ -115,7 +115,7 @@ export function DoctorAppointments({ doctorName, doctorEmail }: { doctorName: st
                   <td>{a.service}</td>
                   <td>{a.date}</td>
                   <td>{a.time}</td>
-                  <td style={{ color: "#8190a5" }}>{a.reason}</td>
+                  <td style={{ color: "#475569" }}>{a.reason}</td>
                   <td><St x={a.status} /></td>
                   <td>
                     <button className="btn btn-outline btn-sm" onClick={() => { setSelected(a); setMsg(""); }}>
@@ -145,7 +145,7 @@ export function DoctorAppointments({ doctorName, doctorEmail }: { doctorName: st
           </>}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
             {[["Patient", selected.patient], ["Doctor", doctorName], ["Date", selected.date], ["Time", selected.time], ["Service", selected.service], ["Reason", selected.reason]].map(([k, v]) => (
-              <div key={k}><p style={{ fontSize: 11, color: "#8190a5", fontWeight: 700, textTransform: "uppercase" }}>{k}</p><p style={{ fontSize: 13, marginTop: 3 }}>{v}</p></div>
+              <div key={k}><p style={{ fontSize: 11, color: "#07516B", fontWeight: 700, textTransform: "uppercase" }}>{k}</p><p style={{ fontSize: 13, marginTop: 3, color: "#12304A" }}>{v}</p></div>
             ))}
           </div>
           {["Approved", "Pending"].includes(selected.status) && (
@@ -257,12 +257,12 @@ export function DoctorRecords({ doctorName }: { doctorName: string }) {
       {loading ? <Loading /> : records.length ? records.map(r => (
         <div key={r.id} className="panel" style={{ marginBottom: 14 }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-            <div><b style={{ fontSize: 14 }}>{r.patient}</b><p style={{ color: "#8190a5", fontSize: 12, marginTop: 2 }}>{r.date}</p></div>
+            <div><b style={{ fontSize: 14, color: "#12304A" }}>{r.patient}</b><p style={{ color: "#475569", fontSize: 12, marginTop: 2 }}>{r.date}</p></div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
             {[["Diagnosis", r.diagnosis], ["Treatment", r.treatment], ["Prescription", r.prescription]].map(([label, val]) => (
               <div key={label as string}>
-                <p style={{ fontSize: 11, color: "#8190a5", fontWeight: 700, textTransform: "uppercase" }}>{label as string}</p>
+                <p style={{ fontSize: 11, color: "#07516B", fontWeight: 700, textTransform: "uppercase" }}>{label as string}</p>
                 <p style={{ fontSize: 13, marginTop: 4 }}>{(val as string) || "—"}</p>
               </div>
             ))}

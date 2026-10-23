@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { Loading, Pagination, Modal, Alert } from "./ui";
 import {
-  getSchedules, addSchedule, updateSchedule, deleteSchedule, Schedule,
+  getSchedules, getAllDoctors, addSchedule, updateSchedule, deleteSchedule, Schedule, Doctor,
   getMedicalRecords, addMedicalRecord, updateMedicalRecord, deleteMedicalRecord, MedicalRecord,
   getAppointments, Appointment,
 } from "./supabase";
@@ -13,24 +13,50 @@ const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
 // ── Schedule Management ────────────────────────────────
 export function ScheduleManagement() {
   const [list, setList] = useState<Schedule[]>([]);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<Schedule | null | "new">(null);
   const [form, setForm] = useState<Partial<Schedule>>({});
+  const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(0);
+  const [loadError, setLoadError] = useState("");
+  const [saveError, setSaveError] = useState("");
 
-  const load = () => getSchedules().then(r => { setList(r.data ?? []); setLoading(false); });
-  useEffect(() => { load(); }, []);
+  const load = () => getSchedules().then(r => {
+    setLoadError(r.error?.message ?? "");
+    setList(r.data ?? []);
+    setLoading(false);
+  });
+  useEffect(() => {
+    load();
+    getAllDoctors().then(r => setDoctors(r.data ?? []));
+  }, []);
 
   const paged = list.slice(page * PER, page * PER + PER);
 
-  function openNew() { setForm({ doctor: "", day: "Monday", start_time: "8:00 AM", end_time: "5:00 PM", slot_duration: 30, is_available: true }); setModal("new"); }
-  function openEdit(s: Schedule) { setForm({ ...s }); setModal(s); }
+  function openNew() { setForm({ doctor: "", day: "Monday", start_time: "8:00 AM", end_time: "5:00 PM", slot_duration: 30, is_available: true }); setSelectedDays([]); setSaveError(""); setModal("new"); }
+  function openEdit(s: Schedule) { setForm({ ...s }); setSelectedDays([s.day]); setSaveError(""); setModal(s); }
 
   async function save() {
+    if (!form.doctor) return setSaveError("Select a doctor.");
+    if (!selectedDays.length) return setSaveError("Select at least one weekday.");
     setSaving(true);
-    if (modal === "new") await addSchedule(form as Omit<Schedule, "id">);
-    else await updateSchedule((modal as Schedule).id, form);
+    setSaveError("");
+    const existingDoctorSchedules = list.filter(s => s.doctor.trim().replace(/^dr\.?\s*/i, "").toLowerCase() === form.doctor!.trim().replace(/^dr\.?\s*/i, "").toLowerCase());
+    const results = await Promise.all(selectedDays.map(day => {
+      const existing = existingDoctorSchedules.find(s => s.day === day);
+      const values = { doctor: form.doctor!, day, start_time: form.start_time!, end_time: form.end_time!, slot_duration: form.slot_duration ?? 30, is_available: form.is_available ?? true };
+      if (existing) return updateSchedule(existing.id, values);
+      return addSchedule(values);
+    }));
+    const failed = results.find(result => result.error);
+    if (failed?.error) {
+      setSaving(false);
+      setSaveError("Could not save schedule: " + failed.error.message);
+      load();
+      return;
+    }
     setSaving(false); setModal(null); load();
   }
 
@@ -42,9 +68,10 @@ export function ScheduleManagement() {
   return (
     <>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
-        <div><h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 4 }}>Doctor Schedules</h1><p style={{ color: "#8190a5" }}>Manage doctor availability</p></div>
+        <div><h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 4, color: "#12304A" }}>Doctor Schedules</h1><p style={{ color: "#475569" }}>Set weekly availability by doctor, weekday, and hours. These schedules repeat each week.</p></div>
         <button className="btn btn-primary" onClick={openNew}>+ Add New Schedule</button>
       </div>
+      {loadError && <Alert type="error" msg={`Could not load schedules: ${loadError}`} />}
       {loading ? <Loading /> : (
         <div className="tbl-wrap">
           <table>
@@ -59,12 +86,12 @@ export function ScheduleManagement() {
                   <td>{s.slot_duration} mins</td>
                   <td><span className={`st ${s.is_available ? "st-confirmed" : "st-cancelled"}`}>{s.is_available ? "Yes" : "No"}</span></td>
                   <td style={{ display: "flex", gap: 6 }}>
-                    <button className="btn-icon btn-edit" onClick={() => openEdit(s)}>✏</button>
+                    <button className="btn btn-outline btn-sm" onClick={() => openEdit(s)}>Edit</button>
                     <button className="btn-icon btn-del" onClick={() => del(s.id)}>🗑</button>
                   </td>
                 </tr>
               ))}
-              {paged.length === 0 && <tr><td colSpan={7} style={{ textAlign: "center", color: "#8190a5", padding: 24 }}>No schedules found.</td></tr>}
+              {paged.length === 0 && <tr><td colSpan={7} style={{ textAlign: "center", color: "#475569", padding: 24 }}>No schedules found.</td></tr>}
             </tbody>
           </table>
           <div className="tbl-footer">
@@ -76,11 +103,23 @@ export function ScheduleManagement() {
       {modal && (
         <Modal title={modal === "new" ? "Add New Schedule" : "Edit Schedule"} onClose={() => setModal(null)}
           footer={<><button className="btn btn-outline" onClick={() => setModal(null)}>Cancel</button><button className="btn btn-primary" disabled={saving} onClick={save}>{saving ? "Saving..." : "Save"}</button></>}>
-          <div className="form-group"><label>Doctor Name</label><input value={form.doctor ?? ""} onChange={e => setForm(p => ({ ...p, doctor: e.target.value }))} /></div>
-          <div className="form-group"><label>Day</label>
-            <select value={form.day ?? "Monday"} onChange={e => setForm(p => ({ ...p, day: e.target.value }))}>
-              {DAYS.map(d => <option key={d}>{d}</option>)}
+          {saveError && <Alert type="error" msg={saveError} />}
+          <div className="form-group"><label>Doctor</label>
+            <select value={form.doctor ?? ""} onChange={e => setForm(p => ({ ...p, doctor: e.target.value }))}>
+              <option value="">Select a doctor</option>
+              {doctors.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
             </select>
+          </div>
+          <div className="form-group"><label>Available weekdays</label>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 14px", padding: "8px 0" }}>
+              {DAYS.map(day => (
+                <label key={day} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: "#12304A" }}>
+                  <input type="checkbox" checked={selectedDays.includes(day)} onChange={e => setSelectedDays(days => e.target.checked ? [...days, day] : days.filter(d => d !== day))} />
+                  {day}
+                </label>
+              ))}
+            </div>
+            <p style={{ fontSize: 11, color: "#64748b" }}>The selected days use the same hours. Other schedule days remain unchanged.</p>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <div className="form-group"><label>Start Time</label><input value={form.start_time ?? ""} onChange={e => setForm(p => ({ ...p, start_time: e.target.value }))} placeholder="8:00 AM" /></div>
@@ -134,7 +173,7 @@ export function MedicalRecordsManagement() {
   return (
     <>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
-        <div><h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 4 }}>Medical Records</h1><p style={{ color: "#8190a5" }}>Manage patient medical records</p></div>
+        <div><h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 4, color: "#12304A" }}>Medical Records</h1><p style={{ color: "#475569" }}>Manage patient medical records</p></div>
         <button className="btn btn-primary" onClick={openNew}>+ Add New Record</button>
       </div>
       <div className="filters"><input placeholder="Search patient or doctor..." value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} /></div>
@@ -156,7 +195,7 @@ export function MedicalRecordsManagement() {
                   </td>
                 </tr>
               ))}
-              {paged.length === 0 && <tr><td colSpan={6} style={{ textAlign: "center", color: "#8190a5", padding: 24 }}>No records found.</td></tr>}
+              {paged.length === 0 && <tr><td colSpan={6} style={{ textAlign: "center", color: "#475569", padding: 24 }}>No records found.</td></tr>}
             </tbody>
           </table>
           <div className="tbl-footer">
@@ -206,12 +245,12 @@ export function Reports() {
   return (
     <>
       <div style={{ marginBottom: 22 }}>
-        <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 4 }}>Reports</h1>
-        <p style={{ color: "#8190a5" }}>As of {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>
+        <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 4, color: "#12304A" }}>Reports</h1>
+        <p style={{ color: "#475569" }}>As of {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</p>
       </div>
       <div className="stats-grid">
         {[["Total Appointments", total], ["Completed", completed], ["Cancelled", cancelled], ["Pending", pending]].map(([label, val]) => (
-          <div key={label as string} className="stat-card"><p>{label as string}</p><h2>{val as number}</h2><span style={{ fontSize: 11, color: "#8190a5" }}>All time</span></div>
+          <div key={label as string} className="stat-card"><p>{label as string}</p><h2>{val as number}</h2><span style={{ fontSize: 11, color: "#475569" }}>All time</span></div>
         ))}
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 22 }}>
@@ -226,7 +265,7 @@ export function Reports() {
                 </div>
               ))}
             </div>
-          ) : <p style={{ color: "#8190a5", fontSize: 13 }}>No appointment data yet.</p>}
+          ) : <p style={{ color: "#475569", fontSize: 13 }}>No appointment data yet.</p>}
         </div>
         <div className="panel">
           <div className="panel-header"><h2>Appointments by Status</h2></div>
@@ -272,7 +311,7 @@ export function AdminSettings() {
 
   return (
     <>
-      <div style={{ marginBottom: 22 }}><h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 4 }}>Settings</h1><p style={{ color: "#8190a5" }}>Manage your account and clinic settings</p></div>
+      <div style={{ marginBottom: 22 }}><h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 4, color: "#12304A" }}>Settings</h1><p style={{ color: "#475569" }}>Manage your account and clinic settings</p></div>
       <div className="settings-tabs">
         {["Profile", "Clinic Information", "Change Password", "Notifications"].map(t => (
           <button key={t} className={`settings-tab ${tab === t ? "settings-tab-active" : ""}`} onClick={() => setTab(t)}>{t}</button>

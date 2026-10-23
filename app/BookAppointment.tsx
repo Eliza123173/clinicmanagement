@@ -1,11 +1,16 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { Av, St, Loading, Alert, PageHeader } from "./ui";
-import { getDoctors, getServices, getSchedulesByDoctor, isSlotAvailable, addAppointment, sendNotification, logActivity, Doctor, Service } from "./supabase";
+import { getDoctors, getServices, getSchedules, isSlotAvailable, addAppointment, sendNotification, logActivity, Doctor, Service } from "./supabase";
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DAYS_SHORT = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const DAYS_FULL = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const normalizeDoctorName = (name: string) => name.trim().toLowerCase().replace(/^dr\.?\s*/, "").replace(/\s+/g, " ");
+const normalizeDay = (day: string) => {
+  const value = day.trim().toLowerCase();
+  return DAYS_FULL.find(d => d.toLowerCase() === value || d.slice(0, 3).toLowerCase() === value) ?? day;
+};
 
 function genSlots(start: string, end: string, duration: number): string[] {
   const slots: string[] = [];
@@ -54,7 +59,7 @@ function Calendar({ selected, onSelect, availableDays }: { selected: string; onS
           const date = new Date(yr, mo, d);
           const dayName = DAYS_FULL[date.getDay()];
           const isPast = date < new Date(today.getFullYear(), today.getMonth(), today.getDate());
-          const isAvail = availableDays.length === 0 || availableDays.includes(dayName);
+          const isAvail = availableDays.includes(dayName);
           const isToday = d === today.getDate() && mo === today.getMonth() && yr === today.getFullYear();
           return (
             <button key={d} disabled={isPast || !isAvail}
@@ -79,8 +84,11 @@ export function BookAppointment({ preDoctor, patientName, patientEmail, onBooked
   const [selSlot, setSelSlot] = useState("");
   const [reason, setReason] = useState("");
   const [slots, setSlots] = useState<string[]>([]);
+  const [schedules, setSchedules] = useState<{ day: string; start_time: string; end_time: string; slot_duration: number; is_available: boolean }[]>([]);
   const [takenSlots, setTakenSlots] = useState<string[]>([]);
   const [availDays, setAvailDays] = useState<string[]>([]);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [scheduleError, setScheduleError] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
@@ -95,15 +103,33 @@ export function BookAppointment({ preDoctor, patientName, patientEmail, onBooked
 
   useEffect(() => {
     if (!selDoc) return;
-    getSchedulesByDoctor(selDoc.name).then(r => {
-      const scheds = r.data ?? [];
-      setAvailDays(scheds.filter((s: { is_available: boolean }) => s.is_available).map((s: { day: string }) => s.day));
-      if (scheds.length > 0) {
-        const s = scheds[0];
-        setSlots(genSlots(s.start_time, s.end_time, s.slot_duration || 30));
+    setScheduleLoading(true);
+    setScheduleError("");
+    getSchedules().then(r => {
+      if (r.error) {
+        setSchedules([]);
+        setAvailDays([]);
+        setScheduleError(r.error.message);
+        setScheduleLoading(false);
+        return;
       }
+      const doctorKey = normalizeDoctorName(selDoc.name);
+      const scheds = ((r.data ?? []) as typeof schedules).filter(s => normalizeDoctorName(s.doctor) === doctorKey);
+      setSchedules(scheds);
+      setAvailDays([...new Set(scheds.filter(s => s.is_available && genSlots(s.start_time, s.end_time, s.slot_duration || 30).length > 0).map(s => normalizeDay(s.day)))]);
+      setSelDate("");
+      setSelSlot("");
+      setScheduleLoading(false);
     });
   }, [selDoc]);
+
+  useEffect(() => {
+    if (!selDate) { setSlots([]); return; }
+    const dayName = DAYS_FULL[new Date(selDate).getDay()];
+    const schedule = schedules.find(s => s.is_available && normalizeDay(s.day) === dayName && normalizeDoctorName(s.doctor) === normalizeDoctorName(selDoc?.name ?? ""));
+    setSlots(schedule ? genSlots(schedule.start_time, schedule.end_time, schedule.slot_duration || 30) : []);
+    setSelSlot("");
+  }, [selDate, schedules]);
 
   useEffect(() => {
     if (!selDoc || !selDate) return;
@@ -126,8 +152,8 @@ export function BookAppointment({ preDoctor, patientName, patientEmail, onBooked
       setSubmitting(false);
       return setErr("Failed to save appointment: " + apptErr.message);
     }
-    await sendNotification(patientEmail, "Appointment Submitted", `Your appointment with ${selDoc.name} on ${selDate} at ${selSlot} is pending approval.`, "info");
-    await sendNotification("admin@carewell.com", "New Appointment", `${patientName} booked with ${selDoc.name} on ${selDate}.`, "info");
+    await sendNotification(patientEmail, "Appointment Submitted", `Your appointment with ${selDoc.name} on ${selDate} at ${selSlot} is pending approval.`, `appointment:${apptData.id}`);
+    await sendNotification("admin@carewell.com", "New Appointment", `${patientName} booked with ${selDoc.name} on ${selDate}.`, `appointment:${apptData.id}`);
     await logActivity("Book Appointment", patientName, "Patient", `Booked with ${selDoc.name} on ${selDate} at ${selSlot}`, selDoc.name);
     setSubmitting(false);
     setDone(true);
@@ -174,10 +200,10 @@ export function BookAppointment({ preDoctor, patientName, patientEmail, onBooked
           <h2 style={{ marginBottom: 16, fontSize: 15, fontWeight: 700 }}>Select a Doctor</h2>
           <div className="doctor-list">
             {doctors.map(d => (
-              <div key={d.id} className="doctor-card" style={{ cursor: "pointer", border: selDoc?.id === d.id ? "2px solid #0867d3" : undefined }} onClick={() => setSelDoc(d)}>
+              <div key={d.id} className="doctor-card" style={{ cursor: "pointer", border: selDoc?.id === d.id ? "2px solid #07516B" : undefined }} onClick={() => setSelDoc(d)}>
                 <Av x={d.initials} size="av-lg" />
                 <div className="info"><b>{d.name}</b><p>{d.spec}</p></div>
-                {selDoc?.id === d.id && <span style={{ color: "#0867d3", fontWeight: 700, fontSize: 13 }}>✓ Selected</span>}
+                {selDoc?.id === d.id && <span style={{ color: "#07516B", fontWeight: 700, fontSize: 13 }}>✓ Selected</span>}
               </div>
             ))}
           </div>
@@ -190,7 +216,7 @@ export function BookAppointment({ preDoctor, patientName, patientEmail, onBooked
       {step === 1 && (
         <div className="panel">
           <h2 style={{ marginBottom: 4, fontSize: 15, fontWeight: 700 }}>Select a Service</h2>
-          <p style={{ fontSize: 12, color: "#8190a5", marginBottom: 16 }}>Click on a service card to select it.</p>
+          <p style={{ fontSize: 12, color: "#475569", marginBottom: 16 }}>Click on a service card to select it.</p>
           {services.length === 0 ? (
             <div className="form-group">
               <label>Service</label>
@@ -200,13 +226,13 @@ export function BookAppointment({ preDoctor, patientName, patientEmail, onBooked
             <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 10 }}>
               {services.map(s => (
                 <button key={s.id} onClick={() => setSelService(s.name)}
-                  style={{ padding: 16, border: `2px solid ${selService === s.name ? "#0867d3" : "#e5edf6"}`, borderRadius: 8, background: selService === s.name ? "#f0f6ff" : "#fff", textAlign: "left", cursor: "pointer", transition: "all .15s" }}>
+                  style={{ padding: 16, border: `2px solid ${selService === s.name ? "#07516B" : "#e5edf6"}`, borderRadius: 8, background: selService === s.name ? "#EFF9FB" : "#fff", textAlign: "left", cursor: "pointer", transition: "all .15s" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                    <b style={{ fontSize: 13, color: selService === s.name ? "#0867d3" : "#102447" }}>{s.name}</b>
-                    {selService === s.name && <span style={{ color: "#0867d3", fontWeight: 700, fontSize: 13 }}>✓</span>}
+                    <b style={{ fontSize: 13, color: selService === s.name ? "#07516B" : "#12304A" }}>{s.name}</b>
+                    {selService === s.name && <span style={{ color: "#07516B", fontWeight: 700, fontSize: 13 }}>✓</span>}
                   </div>
-                  <p style={{ fontSize: 12, color: "#8190a5", marginTop: 6 }}>{s.description}</p>
-                  <p style={{ fontSize: 11, color: "#0867d3", marginTop: 6, fontWeight: 600 }}>{s.duration_minutes} mins</p>
+                  <p style={{ fontSize: 12, color: "#475569", marginTop: 6 }}>{s.description}</p>
+                  <p style={{ fontSize: 11, color: "#07516B", marginTop: 6, fontWeight: 600 }}>{s.duration_minutes} mins</p>
                 </button>
               ))}
             </div>
@@ -224,10 +250,18 @@ export function BookAppointment({ preDoctor, patientName, patientEmail, onBooked
             <b style={{ fontSize: 13 }}>Selected Doctor</b>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
               <Av x={selDoc!.initials} />
-              <div><b style={{ fontSize: 13 }}>{selDoc!.name}</b><p style={{ fontSize: 12, color: "#8190a5" }}>{selDoc!.spec}</p></div>
+              <div><b style={{ fontSize: 13, color: "#12304A" }}>{selDoc!.name}</b><p style={{ fontSize: 12, color: "#475569" }}>{selDoc!.spec}</p></div>
             </div>
             <div style={{ marginTop: 12, fontSize: 13 }}><b>Service:</b> {selService}</div>
-            {availDays.length > 0 && <p style={{ fontSize: 12, color: "#8190a5", marginTop: 10 }}>Available: {availDays.join(", ")}</p>}
+            {scheduleLoading ? (
+              <p style={{ fontSize: 12, color: "#475569", marginTop: 10 }}>Checking doctor&apos;s schedule...</p>
+            ) : scheduleError ? (
+              <p style={{ fontSize: 12, color: "#b91c1c", marginTop: 10 }}>Could not load schedules: {scheduleError}</p>
+            ) : availDays.length > 0 ? (
+              <p style={{ fontSize: 12, color: "#475569", marginTop: 10 }}>Available weekdays: {availDays.join(", ")}</p>
+            ) : (
+              <p style={{ fontSize: 12, color: "#b45309", marginTop: 10 }}>No weekly schedule is set for this doctor yet. Please contact the clinic.</p>
+            )}
           </div>
           <Calendar selected={selDate} onSelect={setSelDate} availableDays={availDays} />
           <div style={{ gridColumn: "1/-1", display: "flex", justifyContent: "space-between" }}>
@@ -245,8 +279,8 @@ export function BookAppointment({ preDoctor, patientName, patientEmail, onBooked
               {slots.length ? slots.map(s => (
                 <button key={s} disabled={takenSlots.includes(s)}
                   className={`slot ${selSlot === s ? "slot-selected" : ""}`}
-                  onClick={() => setSelSlot(s)}>{s}{takenSlots.includes(s) && <span style={{ display: "block", fontSize: 10, color: "#ccc" }}>Taken</span>}</button>
-              )) : <p style={{ color: "#8190a5", fontSize: 13 }}>No slots available for this doctor.</p>}
+                  onClick={() => setSelSlot(s)}>{s}{takenSlots.includes(s) && <span style={{ display: "block", fontSize: 10, color: "#475569" }}>Taken</span>}</button>
+              )) : <p style={{ color: "#475569", fontSize: 13 }}>No slots available for this doctor.</p>}
             </div>
           )}
           <div style={{ marginTop: 18, display: "flex", justifyContent: "space-between" }}>
@@ -260,7 +294,7 @@ export function BookAppointment({ preDoctor, patientName, patientEmail, onBooked
         <div className="panel">
           <h2 style={{ marginBottom: 16, fontSize: 15, fontWeight: 700 }}>Confirm Appointment</h2>
           {[["Doctor", selDoc?.name], ["Service", selService], ["Date", selDate], ["Time", selSlot]].map(([k, v]) => (
-            <div key={k} className="confirm-row"><span style={{ color: "#8190a5" }}>{k}</span><strong>{v}</strong></div>
+            <div key={k} className="confirm-row"><span style={{ color: "#475569" }}>{k}</span><strong style={{ color: "#12304A" }}>{v}</strong></div>
           ))}
           <div className="form-group" style={{ marginTop: 16 }}>
             <label>Reason for Visit</label>

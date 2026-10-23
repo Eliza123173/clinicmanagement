@@ -58,7 +58,7 @@ export function MyAppointments({ patientName, email }: { patientName: string; em
                   <td>{a.service}</td>
                   <td>{a.date}</td>
                   <td>{a.time}</td>
-                  <td style={{ color: "#8190a5" }}>{a.reason}</td>
+                  <td style={{ color: "#475569" }}>{a.reason}</td>
                   <td><St x={a.status} /></td>
                   <td style={{ display: "flex", gap: 6 }}>
                     <button className="btn btn-outline btn-sm" onClick={() => setSelected(a)}>View</button>
@@ -92,10 +92,10 @@ export function MyAppointments({ patientName, email }: { patientName: string; em
             ["Notes", selected.notes || "—"],
           ].map(([label, val]) => (
             <div key={label} style={{ marginBottom: 12 }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: "#8190a5", textTransform: "uppercase", marginBottom: 4 }}>{label}</p>
+              <p style={{ fontSize: 11, fontWeight: 700, color: "#07516B", textTransform: "uppercase", marginBottom: 4 }}>{label}</p>
               {label === "Status"
                 ? <St x={val as string} />
-                : <p style={{ fontSize: 13, background: "#f8fbfe", padding: "8px 12px", borderRadius: 6, border: "1px solid #e5edf6" }}>{val}</p>
+                : <p style={{ fontSize: 13, background: "#f8fbfe", padding: "8px 12px", borderRadius: 6, border: "1px solid #e5edf6", color: "#12304A" }}>{val}</p>
               }
             </div>
           ))}
@@ -124,20 +124,20 @@ export function PatientMedicalRecords({ email }: { email: string }) {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
                 <div>
                   <b style={{ fontSize: 14 }}>{r.date}</b>
-                  <p style={{ color: "#8190a5", fontSize: 12, marginTop: 2 }}>Dr. {r.doctor}</p>
+                  <p style={{ color: "#475569", fontSize: 12, marginTop: 2 }}>Dr. {r.doctor}</p>
                 </div>
                 <button className="btn btn-outline btn-sm" onClick={() => setSelected(r)}>View Details</button>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
                 {[["Diagnosis", r.diagnosis], ["Treatment", r.treatment], ["Prescription", r.prescription]].map(([label, val]) => (
                   <div key={label as string}>
-                    <p style={{ fontSize: 11, color: "#8190a5", fontWeight: 700, textTransform: "uppercase" }}>{label as string}</p>
+                    <p style={{ fontSize: 11, color: "#07516B", fontWeight: 700, textTransform: "uppercase" }}>{label as string}</p>
                     <p style={{ fontSize: 13, marginTop: 4 }}>{(val as string) || "—"}</p>
                   </div>
                 ))}
               </div>
               {r.notes && (
-                <div style={{ marginTop: 12, padding: "10px 14px", background: "#f8fbff", borderRadius: 6, fontSize: 13, color: "#5a6a80" }}>
+                <div style={{ marginTop: 12, padding: "10px 14px", background: "#f8fbff", borderRadius: 6, fontSize: 13, color: "#12304A" }}>
                   <b>Notes:</b> {r.notes}
                 </div>
               )}
@@ -151,8 +151,8 @@ export function PatientMedicalRecords({ email }: { email: string }) {
           footer={<button className="btn btn-primary" onClick={() => setSelected(null)}>Close</button>}>
           {[["Doctor", selected.doctor], ["Date", selected.date], ["Diagnosis", selected.diagnosis], ["Treatment", selected.treatment || "—"], ["Prescription", selected.prescription || "—"], ["Notes", selected.notes || "—"]].map(([label, val]) => (
             <div key={label} style={{ marginBottom: 12 }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: "#8190a5", textTransform: "uppercase", marginBottom: 4 }}>{label}</p>
-              <p style={{ fontSize: 13, background: "#f8fbfe", padding: "8px 12px", borderRadius: 6, border: "1px solid #e5edf6" }}>{val}</p>
+              <p style={{ fontSize: 11, fontWeight: 700, color: "#07516B", textTransform: "uppercase", marginBottom: 4 }}>{label}</p>
+              <p style={{ fontSize: 13, background: "#f8fbfe", padding: "8px 12px", borderRadius: 6, border: "1px solid #e5edf6", color: "#12304A" }}>{val}</p>
             </div>
           ))}
         </Modal>
@@ -161,9 +161,11 @@ export function PatientMedicalRecords({ email }: { email: string }) {
   );
 }
 
-export function PatientProfile({ email }: { email: string }) {
+export function PatientProfile({ email, defaultTab = "profile" }: { email: string; defaultTab?: string }) {
+  const [tab, setTab] = useState(defaultTab);
   const [patient, setPatient] = useState<Patient | null>(null);
   const [form, setForm] = useState<Partial<Patient>>({});
+  const [pwForm, setPwForm] = useState({ current: "", next: "", confirm: "" });
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
@@ -176,6 +178,22 @@ export function PatientProfile({ email }: { email: string }) {
   }, [email]);
 
   async function save() {
+    if (tab === "settings") {
+      if (!pwForm.current) return setErr("Enter your current password.");
+      if (pwForm.next.length < 8) return setErr("New password must be at least 8 characters.");
+      if (pwForm.next !== pwForm.confirm) return setErr("Passwords do not match.");
+      setSaving(true); setErr("");
+      const { supabase } = await import("./supabase");
+      const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password: pwForm.current });
+      if (signInErr) { setSaving(false); return setErr("Current password is incorrect."); }
+      const { error } = await supabase.auth.updateUser({ password: pwForm.next });
+      setSaving(false);
+      if (error) return setErr(error.message);
+      setPwForm({ current: "", next: "", confirm: "" });
+      setMsg("Password updated successfully!");
+      setTimeout(() => setMsg(""), 3000);
+      return;
+    }
     if (!form.name?.trim()) return setErr("Full name is required.");
     if (!form.contact?.trim()) return setErr("Contact number is required.");
     setSaving(true); setErr("");
@@ -195,38 +213,63 @@ export function PatientProfile({ email }: { email: string }) {
           <Av x={initials} size="av-xl" />
           <div>
             <b style={{ fontSize: 17, fontWeight: 700 }}>{form.name || "Patient"}</b>
-            <p style={{ color: "#8190a5", marginTop: 4 }}>Patient</p>
-            <p style={{ color: "#8190a5", fontSize: 12 }}>{email}</p>
+            <p style={{ color: "#475569", marginTop: 4 }}>Patient</p>
+            <p style={{ color: "#475569", fontSize: 12 }}>{email}</p>
           </div>
+        </div>
+        <div className="tabs" style={{ marginBottom: 20 }}>
+          {["profile", "settings"].map(t => (
+            <button key={t} className={`tab ${tab === t ? "tab-active" : ""}`} onClick={() => { setTab(t); setErr(""); setMsg(""); }}>
+              {t === "profile" ? "Profile Information" : "Account Settings"}
+            </button>
+          ))}
         </div>
         <Alert type="error" msg={err} />
         <Alert type="success" msg={msg} />
-        <div className="form-grid">
-          {[
-            ["Full Name", "name", "text"],
-            ["Email Address", "email", "email"],
-            ["Date of Birth", "dob", "date"],
-            ["Contact Number", "contact", "text"],
-            ["Blood Type", "blood", "text"],
-            ["Address", "address", "text"],
-          ].map(([label, key, type]) => (
-            <div className="form-group" key={key} style={key === "address" ? { gridColumn: "1/-1" } : {}}>
-              <label>{label}</label>
-              <input type={type} value={(form as Record<string, string>)[key] ?? ""} disabled={key === "email"}
-                onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))} />
+        {tab === "profile" && (
+          <>
+            <div className="form-grid">
+              {[
+                ["Full Name", "name", "text"],
+                ["Email Address", "email", "email"],
+                ["Date of Birth", "dob", "date"],
+                ["Contact Number", "contact", "text"],
+                ["Blood Type", "blood", "text"],
+                ["Address", "address", "text"],
+              ].map(([label, key, type]) => (
+                <div className="form-group" key={key} style={key === "address" ? { gridColumn: "1/-1" } : {}}>
+                  <label>{label}</label>
+                  <input type={type} value={(form as Record<string, string>)[key] ?? ""} disabled={key === "email"}
+                    onChange={e => setForm(p => ({ ...p, [key]: e.target.value }))} />
+                </div>
+              ))}
+              <div className="form-group">
+                <label>Gender</label>
+                <select value={form.gender ?? ""} onChange={e => setForm(p => ({ ...p, gender: e.target.value }))}>
+                  <option value="">Select gender</option>
+                  <option>Female</option><option>Male</option><option>Other</option>
+                </select>
+              </div>
             </div>
-          ))}
-          <div className="form-group">
-            <label>Gender</label>
-            <select value={form.gender ?? ""} onChange={e => setForm(p => ({ ...p, gender: e.target.value }))}>
-              <option value="">Select gender</option>
-              <option>Female</option><option>Male</option><option>Other</option>
-            </select>
-          </div>
-        </div>
-        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18 }}>
-          <button className="btn btn-primary" disabled={saving} onClick={save}>{saving ? "Saving..." : "Save Changes"}</button>
-        </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18 }}>
+              <button className="btn btn-primary" disabled={saving} onClick={save}>{saving ? "Saving..." : "Save Changes"}</button>
+            </div>
+          </>
+        )}
+        {tab === "settings" && (
+          <>
+            <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16, color: "#12304A" }}>Change Password</h3>
+            {([["Current Password", "current"], ["New Password", "next"], ["Confirm New Password", "confirm"]] as [string, keyof typeof pwForm][]).map(([label, key]) => (
+              <div className="form-group" key={key}>
+                <label>{label}</label>
+                <input type="password" value={pwForm[key]} onChange={e => setPwForm(p => ({ ...p, [key]: e.target.value }))} />
+              </div>
+            ))}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18 }}>
+              <button className="btn btn-primary" disabled={saving} onClick={save}>{saving ? "Updating..." : "Update Password"}</button>
+            </div>
+          </>
+        )}
       </div>
     </>
   );

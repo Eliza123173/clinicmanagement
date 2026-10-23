@@ -49,8 +49,8 @@ export function DoctorPortal({ doctorName, doctorSpec, doctorInitials }: {
     <>
       <div className="welcome-bar">
         <div>
-          <h1>Welcome, Dr. {doctorName.split(" ").slice(1).join(" ") || doctorName}! 👋</h1>
-          <p style={{ color: "#8190a5" }}>{doctorSpec}</p>
+          <h1>Welcome, Dr. {doctorName.split(" ").slice(1).join(" ") || doctorName}!</h1>
+          <p style={{ color: "#e0f7fa" }}>{doctorSpec}</p>
         </div>
         <Av x={doctorInitials} size="av-lg" />
       </div>
@@ -97,11 +97,11 @@ function DoctorDashboardTab({ todayAppts, upcoming, schedules }: {
               <Av x={a.patient.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()} />
               <div style={{ flex: 1 }}>
                 <b style={{ fontSize: 13 }}>{a.patient}</b>
-                <p style={{ fontSize: 12, color: "#8190a5" }}>{a.time} — {a.service} — {a.reason}</p>
+                <p style={{ fontSize: 12, color: "#475569" }}>{a.time} — {a.service} — {a.reason}</p>
               </div>
               <St x={a.status} />
             </div>
-          )) : <p style={{ color: "#8190a5", fontSize: 13 }}>No patients scheduled for today.</p>}
+          )) : <p style={{ color: "#475569", fontSize: 13 }}>No patients scheduled for today.</p>}
         </div>
         <div className="panel">
           <div className="panel-header"><h2>Upcoming Appointments</h2></div>
@@ -112,7 +112,7 @@ function DoctorDashboardTab({ todayAppts, upcoming, schedules }: {
               <div className="time">{a.date}<small>{a.time}</small></div>
               <St x={a.status} />
             </div>
-          )) : <p style={{ color: "#8190a5", fontSize: 13 }}>No upcoming appointments.</p>}
+          )) : <p style={{ color: "#475569", fontSize: 13 }}>No upcoming appointments.</p>}
         </div>
       </div>
       <div className="panel">
@@ -122,7 +122,7 @@ function DoctorDashboardTab({ todayAppts, upcoming, schedules }: {
             <span>{s.day}</span>
             <span style={{ fontWeight: 600 }}>{s.start_time} – {s.end_time}</span>
           </div>
-        )) : <p style={{ color: "#8190a5", fontSize: 13 }}>No schedule set. Contact admin.</p>}
+        )) : <p style={{ color: "#475569", fontSize: 13 }}>No schedule set. Contact admin.</p>}
       </div>
     </div>
   );
@@ -199,7 +199,7 @@ function DoctorAppointmentsTab({ appts, doctorName, onRefresh }: {
                 <td>{a.service}</td>
                 <td>{a.date}</td>
                 <td>{a.time}</td>
-                <td style={{ color: "#8190a5" }}>{a.reason}</td>
+                <td style={{ color: "#475569" }}>{a.reason}</td>
                 <td><St x={a.status} /></td>
                 <td>
                   {["Pending", "Approved"].includes(a.status) && (
@@ -211,7 +211,7 @@ function DoctorAppointmentsTab({ appts, doctorName, onRefresh }: {
                 </td>
               </tr>
             )) : (
-              <tr><td colSpan={7} style={{ textAlign: "center", color: "#8190a5", padding: 30 }}>No appointments found.</td></tr>
+              <tr><td colSpan={7} style={{ textAlign: "center", color: "#475569", padding: 30 }}>No appointments found.</td></tr>
             )}
           </tbody>
         </table>
@@ -228,9 +228,9 @@ function DoctorAppointmentsTab({ appts, doctorName, onRefresh }: {
             </>
           }>
           <Alert type="error" msg={err} />
-          <div style={{ background: "#f8fbff", borderRadius: 8, padding: "12px 14px", marginBottom: 16, fontSize: 13 }}>
+          <div style={{ background: "#f8fbff", borderRadius: 8, padding: "12px 14px", marginBottom: 16, fontSize: 13, color: "#12304A" }}>
             <b>{selected.patient}</b> — {selected.service}<br />
-            <span style={{ color: "#8190a5" }}>{selected.date} at {selected.time} — {selected.reason}</span>
+            <span style={{ color: "#475569" }}>{selected.date} at {selected.time} — {selected.reason}</span>
           </div>
           {["Pending", "Approved"].includes(selected.status) && (
             <>
@@ -251,7 +251,7 @@ function DoctorAppointmentsTab({ appts, doctorName, onRefresh }: {
             </>
           )}
           {selected.status === "Completed" && (
-            <div style={{ fontSize: 13, color: "#5a6a80" }}>
+            <div style={{ fontSize: 13, color: "#475569" }}>
               <b>Notes:</b> {selected.notes || "—"}
             </div>
           )}
@@ -283,7 +283,7 @@ function DoctorRecordsTab({ records }: { records: MedicalRecord[] }) {
                 <td><button className="btn btn-outline btn-sm" onClick={() => setSelected(r)}>View</button></td>
               </tr>
             )) : (
-              <tr><td colSpan={6} style={{ textAlign: "center", color: "#8190a5", padding: 24 }}>No records found.</td></tr>
+              <tr><td colSpan={6} style={{ textAlign: "center", color: "#475569", padding: 24 }}>No records found.</td></tr>
             )}
           </tbody>
         </table>
@@ -293,8 +293,8 @@ function DoctorRecordsTab({ records }: { records: MedicalRecord[] }) {
           footer={<button className="btn btn-primary" onClick={() => setSelected(null)}>Close</button>}>
           {[["Patient", selected.patient], ["Date", selected.date], ["Diagnosis", selected.diagnosis], ["Treatment", selected.treatment || "—"], ["Prescription", selected.prescription || "—"], ["Notes", selected.notes || "—"]].map(([label, val]) => (
             <div key={label} style={{ marginBottom: 12 }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: "#8190a5", textTransform: "uppercase", marginBottom: 4 }}>{label}</p>
-              <p style={{ fontSize: 13, background: "#f8fbfe", padding: "8px 12px", borderRadius: 6, border: "1px solid #e5edf6" }}>{val}</p>
+              <p style={{ fontSize: 11, fontWeight: 700, color: "#07516B", textTransform: "uppercase", marginBottom: 4 }}>{label}</p>
+              <p style={{ fontSize: 13, background: "#f8fbfe", padding: "8px 12px", borderRadius: 6, border: "1px solid #e5edf6", color: "#12304A" }}>{val}</p>
             </div>
           ))}
         </Modal>

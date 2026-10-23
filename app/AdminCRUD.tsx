@@ -6,10 +6,11 @@ import {
   getAllDoctors, addDoctor, updateDoctor, deleteDoctor, Doctor,
   getAppointments, updateAppointment, deleteAppointment, Appointment,
   getAllServices, addService, updateService, deleteService, Service,
-  sendNotification, logActivity,
+  sendNotification, logActivity, addMedicalRecord, addSchedule, getSchedules, Schedule,
 } from "./supabase";
 
 const PER = 5;
+const DOCTOR_WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 // ── Patient Management ─────────────────────────────────
 export function PatientManagement() {
@@ -51,7 +52,7 @@ export function PatientManagement() {
   return (
     <>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
-        <div><h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 4 }}>Patients</h1><p style={{ color: "#8190a5" }}>Manage patient records</p></div>
+        <div><h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 4, color: "#12304A" }}>Patients</h1><p style={{ color: "#475569" }}>Manage patient records</p></div>
         <button className="btn btn-primary" onClick={openNew}>+ Add New Patient</button>
       </div>
       <div className="filters">
@@ -75,7 +76,7 @@ export function PatientManagement() {
                   </td>
                 </tr>
               ))}
-              {paged.length === 0 && <tr><td colSpan={6} style={{ textAlign: "center", color: "#8190a5", padding: 24 }}>No patients found.</td></tr>}
+              {paged.length === 0 && <tr><td colSpan={6} style={{ textAlign: "center", color: "#475569", padding: 24 }}>No patients found.</td></tr>}
             </tbody>
           </table>
           <div className="tbl-footer">
@@ -108,8 +109,9 @@ export function PatientManagement() {
 }
 
 // ── Doctor Management ──────────────────────────────────
-export function DoctorManagement() {
+export function DoctorManagement({ onManageSchedules }: { onManageSchedules?: () => void } = {}) {
   const [list, setList] = useState<Doctor[]>([]);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -117,8 +119,16 @@ export function DoctorManagement() {
   const [form, setForm] = useState<Partial<Doctor> & { password?: string }>({});
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
+  const [availableDays, setAvailableDays] = useState<string[]>([]);
+  const [scheduleStart, setScheduleStart] = useState("8:00 AM");
+  const [scheduleEnd, setScheduleEnd] = useState("5:00 PM");
+  const [scheduleDuration, setScheduleDuration] = useState(30);
 
-  const load = () => getAllDoctors().then(r => { setList(r.data ?? []); setLoading(false); });
+  const load = () => Promise.all([getAllDoctors(), getSchedules()]).then(([doctorResult, scheduleResult]) => {
+    setList(doctorResult.data ?? []);
+    setSchedules(scheduleResult.data ?? []);
+    setLoading(false);
+  });
   useEffect(() => { load(); }, []);
 
   const filtered = list.filter(d =>
@@ -129,6 +139,7 @@ export function DoctorManagement() {
 
   function openNew() {
     setForm({ name: "", spec: "", email: "", password: "", avail: "Available Today", rating: 4.5, reviews: 0, years: 1, patients: 0, initials: "", is_active: true });
+    setAvailableDays([]); setScheduleStart("8:00 AM"); setScheduleEnd("5:00 PM"); setScheduleDuration(30);
     setErr(""); setModal("new");
   }
   function openEdit(d: Doctor) { setForm({ ...d, password: "" }); setErr(""); setModal(d); }
@@ -136,6 +147,8 @@ export function DoctorManagement() {
   async function save() {
     if (!form.name?.trim()) return setErr("Name is required.");
     if (!form.spec?.trim()) return setErr("Specialization is required.");
+    if (modal === "new" && availableDays.length === 0) return setErr("Select at least one weekly available day.");
+    if (modal === "new" && (!scheduleStart.trim() || !scheduleEnd.trim() || scheduleDuration < 1)) return setErr("Enter valid schedule hours and slot duration.");
     setSaving(true); setErr("");
     const initials = form.initials?.trim() || form.name!.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
     if (modal === "new") {
@@ -149,8 +162,28 @@ export function DoctorManagement() {
         if (result.error) { setSaving(false); setErr("Account error: " + result.error); return; }
       }
       const { password: _, ...docData } = form;
-      await addDoctor({ ...docData, initials } as Omit<Doctor, "id">);
+      const { data: createdDoctor, error: createError } = await addDoctor({ ...docData, initials } as Omit<Doctor, "id">);
+      if (createError || !createdDoctor) {
+        setSaving(false);
+        setErr("Could not save doctor: " + (createError?.message ?? "No doctor record was returned."));
+        return;
+      }
+      const scheduleResults = await Promise.all(availableDays.map(day => addSchedule({
+        doctor: createdDoctor.name,
+        day,
+        start_time: scheduleStart.trim(),
+        end_time: scheduleEnd.trim(),
+        slot_duration: scheduleDuration,
+        is_available: true,
+      })));
       await logActivity("Add Doctor", "Administrator", "Admin", `Added Dr. ${form.name}`, form.name);
+      if (scheduleResults.some(result => result.error)) {
+        setModal(createdDoctor);
+        setSaving(false);
+        setErr("Doctor was added, but one or more schedules could not be saved. Open Schedules to finish setting availability.");
+        load();
+        return;
+      }
     } else {
       const { password: _, ...docData } = form;
       await updateDoctor((modal as Doctor).id, { ...docData, initials });
@@ -175,7 +208,7 @@ export function DoctorManagement() {
   return (
     <>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
-        <div><h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 4 }}>Doctors</h1><p style={{ color: "#8190a5" }}>Manage doctor records</p></div>
+        <div><h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 4, color: "#12304A" }}>Doctors</h1><p style={{ color: "#475569" }}>Manage doctor records</p></div>
         <button className="btn btn-primary" onClick={openNew}>+ Add New Doctor</button>
       </div>
       <div className="filters">
@@ -184,7 +217,7 @@ export function DoctorManagement() {
       {loading ? <Loading /> : (
         <div className="tbl-wrap">
           <table>
-            <thead><tr><th>Name</th><th>Specialization</th><th>Email</th><th>Status</th><th>Action</th></tr></thead>
+            <thead><tr><th>Name</th><th>Specialization</th><th>Email</th><th>Weekly Availability</th><th>Status</th><th>Action</th></tr></thead>
             <tbody>
               {paged.map(d => (
                 <tr key={d.id}>
@@ -192,17 +225,23 @@ export function DoctorManagement() {
                   <td>{d.spec}</td>
                   <td>{d.email}</td>
                   <td>
+                    {schedules.filter(s => s.doctor.trim().replace(/^dr\.?\s*/i, "").toLowerCase() === d.name.trim().replace(/^dr\.?\s*/i, "").toLowerCase() && s.is_available).length
+                      ? schedules.filter(s => s.doctor.trim().replace(/^dr\.?\s*/i, "").toLowerCase() === d.name.trim().replace(/^dr\.?\s*/i, "").toLowerCase() && s.is_available).map(s => `${s.day} ${s.start_time}–${s.end_time}`).join(", ")
+                      : <span style={{ color: "#b45309" }}>No availability set</span>}
+                  </td>
+                  <td>
                     <button className={d.is_active ? "btn btn-success btn-sm" : "btn btn-outline btn-sm"} onClick={() => toggleActive(d)}>
                       {d.is_active ? "Active" : "Inactive"}
                     </button>
                   </td>
                   <td style={{ display: "flex", gap: 6 }}>
+                    <button className="btn btn-outline btn-sm" onClick={onManageSchedules}>Manage availability</button>
                     <button className="btn-icon btn-edit" onClick={() => openEdit(d)}>✏</button>
                     <button className="btn-icon btn-del" onClick={() => del(d)}>🗑</button>
                   </td>
                 </tr>
               ))}
-              {paged.length === 0 && <tr><td colSpan={5} style={{ textAlign: "center", color: "#8190a5", padding: 24 }}>No doctors found.</td></tr>}
+              {paged.length === 0 && <tr><td colSpan={6} style={{ textAlign: "center", color: "#475569", padding: 24 }}>No doctors found.</td></tr>}
             </tbody>
           </table>
           <div className="tbl-footer">
@@ -233,6 +272,25 @@ export function DoctorManagement() {
               </div>
             )}
           </div>
+          {modal === "new" && (
+            <div style={{ marginTop: 14, padding: 14, border: "1px solid #DCEEF2", borderRadius: 8, background: "#F7FCFD" }}>
+              <b style={{ display: "block", marginBottom: 4, color: "#12304A", fontSize: 13 }}>Weekly Availability *</b>
+              <p style={{ color: "#475569", fontSize: 12, marginBottom: 10 }}>Choose the weekdays and hours patients can book. This schedule repeats each week.</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 14px", marginBottom: 12 }}>
+                {DOCTOR_WEEKDAYS.map(day => (
+                  <label key={day} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, color: "#12304A" }}>
+                    <input type="checkbox" checked={availableDays.includes(day)} onChange={e => setAvailableDays(days => e.target.checked ? [...days, day] : days.filter(d => d !== day))} />
+                    {day}
+                  </label>
+                ))}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                <div className="form-group"><label>Start Time</label><input value={scheduleStart} onChange={e => setScheduleStart(e.target.value)} placeholder="8:00 AM" /></div>
+                <div className="form-group"><label>End Time</label><input value={scheduleEnd} onChange={e => setScheduleEnd(e.target.value)} placeholder="5:00 PM" /></div>
+                <div className="form-group"><label>Slot (minutes)</label><input type="number" min={1} value={scheduleDuration} onChange={e => setScheduleDuration(Number(e.target.value))} /></div>
+              </div>
+            </div>
+          )}
         </Modal>
       )}
     </>
@@ -240,16 +298,26 @@ export function DoctorManagement() {
 }
 
 // ── Appointment Management ─────────────────────────────
-export function AppointmentManagement() {
+export function AppointmentManagement({ focusAppointmentId }: { focusAppointmentId?: string | null } = {}) {
   const [list, setList] = useState<Appointment[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All Status");
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Appointment | null>(null);
+  const [recordForm, setRecordForm] = useState({ diagnosis: "", treatment: "", prescription: "", notes: "" });
+  const [savingRecord, setSavingRecord] = useState(false);
+  const [recordError, setRecordError] = useState("");
 
-  const load = () => getAppointments().then(r => { setList(r.data ?? []); setLoading(false); });
-  useEffect(() => { load(); }, []);
+  const load = () => getAppointments().then(r => {
+    const appointments = r.data ?? [];
+    setList(appointments);
+    if (focusAppointmentId) {
+      setSelected(appointments.find(a => a.id === focusAppointmentId) ?? null);
+    }
+    setLoading(false);
+  });
+  useEffect(() => { load(); }, [focusAppointmentId]);
 
   const filtered = list.filter(a => {
     const q = search.toLowerCase();
@@ -278,11 +346,39 @@ export function AppointmentManagement() {
     await deleteAppointment(id); load();
   }
 
+  async function completeAppointment(a: Appointment) {
+    if (!recordForm.diagnosis.trim()) return setRecordError("Please enter a diagnosis before completing this appointment.");
+    setSavingRecord(true);
+    setRecordError("");
+    const { error } = await addMedicalRecord({
+      appointment_id: a.id,
+      patient: a.patient,
+      patient_email: a.patient_email,
+      doctor: a.doctor,
+      date: a.date,
+      diagnosis: recordForm.diagnosis.trim(),
+      treatment: recordForm.treatment.trim(),
+      prescription: recordForm.prescription.trim(),
+      notes: recordForm.notes.trim(),
+    });
+    if (error) {
+      setSavingRecord(false);
+      return setRecordError("Could not save medical record: " + error.message);
+    }
+    await updateAppointment(a.id, { status: "Completed", notes: recordForm.notes.trim() || null });
+    await sendNotification(a.patient_email, "Appointment Completed", `Your appointment with ${a.doctor} on ${a.date} has been completed. A medical record is available.`, "success");
+    await logActivity("Complete Appointment", "Administrator", "Admin", `${a.patient} with ${a.doctor} on ${a.date}`, a.patient);
+    setSavingRecord(false);
+    setSelected(null);
+    setRecordForm({ diagnosis: "", treatment: "", prescription: "", notes: "" });
+    load();
+  }
+
   return (
     <>
       <div style={{ marginBottom: 22 }}>
-        <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 4 }}>Appointments</h1>
-        <p style={{ color: "#8190a5" }}>Manage all appointments</p>
+        <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 4, color: "#12304A" }}>Appointments</h1>
+        <p style={{ color: "#475569" }}>Manage all appointments</p>
       </div>
       <div className="filters">
         <input placeholder="Search patient or doctor..." value={search} onChange={e => { setSearch(e.target.value); setPage(0); }} />
@@ -315,7 +411,7 @@ export function AppointmentManagement() {
                   </td>
                 </tr>
               ))}
-              {paged.length === 0 && <tr><td colSpan={7} style={{ textAlign: "center", color: "#8190a5", padding: 24 }}>No appointments found.</td></tr>}
+              {paged.length === 0 && <tr><td colSpan={7} style={{ textAlign: "center", color: "#475569", padding: 24 }}>No appointments found.</td></tr>}
             </tbody>
           </table>
           <div className="tbl-footer">
@@ -334,12 +430,30 @@ export function AppointmentManagement() {
                   <button className="btn btn-danger" onClick={() => changeStatus(selected, "Rejected")}>✕ Reject</button>
                 </>
               )}
+              {selected.status === "Approved" && (
+                <button className="btn btn-success" disabled={savingRecord} onClick={() => completeAppointment(selected)}>
+                  {savingRecord ? "Saving..." : "Complete Appointment"}
+                </button>
+              )}
               {["Pending", "Approved"].includes(selected.status) && (
                 <button className="btn btn-outline" onClick={() => changeStatus(selected, "Cancelled")}>Cancel Appointment</button>
               )}
               <button className="btn btn-primary" onClick={() => setSelected(null)}>Close</button>
             </div>
           }>
+          {selected.status === "Approved" && (
+            <div style={{ marginBottom: 16, padding: 14, background: "#f0f9ff", border: "1px solid #dceef2", borderRadius: 8 }}>
+              <h3 style={{ fontSize: 14, marginBottom: 10, color: "#07516B" }}>Medical Record</h3>
+              <p style={{ fontSize: 12, color: "#475569", marginBottom: 12 }}>Enter the consultation details before completing this appointment.</p>
+              {recordError && <Alert type="error" msg={recordError} />}
+              {([["diagnosis", "Diagnosis *"], ["treatment", "Treatment"], ["prescription", "Prescription"], ["notes", "Notes"]] as const).map(([key, label]) => (
+                <div className="form-group" key={key}>
+                  <label>{label}</label>
+                  <textarea value={recordForm[key]} onChange={e => setRecordForm(f => ({ ...f, [key]: e.target.value }))} rows={key === "diagnosis" ? 2 : 3} />
+                </div>
+              ))}
+            </div>
+          )}
           {[
             ["Patient", selected.patient],
             ["Patient Email", selected.patient_email],
@@ -352,10 +466,10 @@ export function AppointmentManagement() {
             ["Notes", selected.notes || "—"],
           ].map(([label, val]) => (
             <div key={label} style={{ marginBottom: 10 }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: "#8190a5", textTransform: "uppercase", marginBottom: 3 }}>{label}</p>
+              <p style={{ fontSize: 11, fontWeight: 700, color: "#07516B", textTransform: "uppercase", marginBottom: 3 }}>{label}</p>
               {label === "Status"
                 ? <St x={val as string} />
-                : <p style={{ fontSize: 13, background: "#f8fbfe", padding: "7px 12px", borderRadius: 6, border: "1px solid #e5edf6" }}>{val}</p>
+                : <p style={{ fontSize: 13, background: "#f8fbfe", padding: "7px 12px", borderRadius: 6, border: "1px solid #e5edf6", color: "#12304A" }}>{val}</p>
               }
             </div>
           ))}
@@ -399,7 +513,7 @@ export function ServiceManagement() {
   return (
     <>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 22 }}>
-        <div><h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 4 }}>Services</h1><p style={{ color: "#8190a5" }}>Manage clinic services</p></div>
+        <div><h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 4, color: "#12304A" }}>Services</h1><p style={{ color: "#475569" }}>Manage clinic services</p></div>
         <button className="btn btn-primary" onClick={openNew}>+ Add New Service</button>
       </div>
       {loading ? <Loading /> : (
@@ -410,7 +524,7 @@ export function ServiceManagement() {
               {paged.map(s => (
                 <tr key={s.id}>
                   <td><b>{s.name}</b></td>
-                  <td style={{ color: "#8190a5" }}>{s.description}</td>
+                  <td style={{ color: "#475569" }}>{s.description}</td>
                   <td>{s.duration_minutes} mins</td>
                   <td><span className={`st ${s.is_active ? "st-confirmed" : "st-cancelled"}`}>{s.is_active ? "Active" : "Inactive"}</span></td>
                   <td style={{ display: "flex", gap: 6 }}>
@@ -419,7 +533,7 @@ export function ServiceManagement() {
                   </td>
                 </tr>
               ))}
-              {paged.length === 0 && <tr><td colSpan={5} style={{ textAlign: "center", color: "#8190a5", padding: 24 }}>No services found.</td></tr>}
+              {paged.length === 0 && <tr><td colSpan={5} style={{ textAlign: "center", color: "#475569", padding: 24 }}>No services found.</td></tr>}
             </tbody>
           </table>
           <div className="tbl-footer">
