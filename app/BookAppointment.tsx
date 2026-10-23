@@ -153,7 +153,7 @@ export function BookAppointment({ preDoctor, patientName, patientEmail, onBooked
       return setErr("Failed to save appointment: " + apptErr.message);
     }
     await sendNotification(patientEmail, "Appointment Submitted", `Your appointment with ${selDoc.name} on ${selDate} at ${selSlot} is pending approval.`, `appointment:${apptData.id}`);
-    await sendNotification("admin@carewell.com", "New Appointment", `${patientName} booked with ${selDoc.name} on ${selDate}.`, `appointment:${apptData.id}`);
+    await sendNotification("elizcayampat@gmail.com", "New Appointment", `${patientName} booked with ${selDoc.name} on ${selDate}.`, `appointment:${apptData.id}`);
     await logActivity("Book Appointment", patientName, "Patient", `Booked with ${selDoc.name} on ${selDate} at ${selSlot}`, selDoc.name);
     setSubmitting(false);
     setDone(true);

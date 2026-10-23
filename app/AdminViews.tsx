@@ -289,7 +289,7 @@ export function Reports() {
 // ── Admin Settings ─────────────────────────────────────
 export function AdminSettings() {
   const [tab, setTab] = useState("Profile");
-  const [form, setForm] = useState({ name: "Administrator", email: "admin@carewell.com", contact: "0912 000 1111", clinic: "CareWell Clinic", address: "123 Health St, Cebu City", phone: "032-123-4567" });
+  const [form, setForm] = useState({ name: "Administrator", email: "elizcayampat@gmail.com", contact: "0912 000 1111", clinic: "CareWell Clinic", address: "123 Health St, Cebu City", phone: "032-123-4567" });
   const [pwForm, setPwForm] = useState({ current: "", next: "", confirm: "" });
   const [msg, setMsg] = useState("");
 
@@ -299,7 +299,7 @@ export function AdminSettings() {
       if (pwForm.next.length < 8) return setMsg("❌ New password must be at least 8 characters.");
       if (pwForm.next !== pwForm.confirm) return setMsg("❌ Passwords do not match.");
       const { supabase } = await import("./supabase");
-      const { error: signInErr } = await supabase.auth.signInWithPassword({ email: "admin@carewell.com", password: pwForm.current });
+      const { error: signInErr } = await supabase.auth.signInWithPassword({ email: "elizcayampat@gmail.com", password: pwForm.current });
       if (signInErr) return setMsg("❌ Current password is incorrect.");
       const { error } = await supabase.auth.updateUser({ password: pwForm.next });
       if (error) return setMsg("❌ " + error.message);

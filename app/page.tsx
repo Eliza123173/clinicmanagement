@@ -65,7 +65,7 @@ export default function Home() {
         if (data.session) {
           const email = data.session.user.email ?? "";
           const { data: doc } = await supabase.from("doctors").select("*").eq("email", email).limit(1);
-          const restoredRole: Role = email === "admin@carewell.com" ? "Admin"
+          const restoredRole: Role = email === "elizcayampat@gmail.com" ? "Admin"
             : doc?.[0] ? "Doctor" : "Patient";
           const { data: pat } = restoredRole === "Patient"
             ? await supabase.from("patients").select("name").eq("email", email).limit(1)

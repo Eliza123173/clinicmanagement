@@ -15,7 +15,7 @@ CareWell Clinic lets patients create a verified account, book appointments, trac
 1. Open the application and select **Get Started**.
 2. Choose **Sign Up**, complete the required details, and create a strong password.
 3. Enter the six-digit code sent to the registered email, or choose **Resend code** if it expires.
-4. Log in with the verified email and password.
+4. Log in with the verified email and password, then enter the six-digit code emailed for that login.
 5. Select **Find a Doctor**, choose a doctor, select a date and time, provide a reason, and confirm the appointment.
 6. Open **My Appointments** to check pending, confirmed, completed, or cancelled appointments. Completed and cancelled appointments serve as history.
 7. Use **Message Board** to send a question to the administrator. Use **My Profile** to update contact information.
@@ -23,7 +23,7 @@ CareWell Clinic lets patients create a verified account, book appointments, trac
 
 ## Doctor guide
 
-1. Log in using the doctor account created by the administrator.
+1. Log in using the doctor account created by the administrator, then enter the six-digit code emailed for that login.
 2. The dashboard shows appointments, upcoming appointments, status counts, and the assigned schedule.
 3. Select **Process** beside an appointment, verify the details, choose the appropriate status, add remarks, and save.
 4. Open **Message Board** to contact the administrator.
@@ -31,7 +31,7 @@ CareWell Clinic lets patients create a verified account, book appointments, trac
 
 ## Administrator guide
 
-1. Log in with the administrator account.
+1. Log in with the administrator account, then enter the six-digit code emailed for that login.
 2. The dashboard shows patient and doctor totals, today's appointments, and pending appointments.
 3. Use **Patients**, **Doctors**, **Schedules**, and **Medical Records** to create, search, edit, and delete clinic records.
 4. Use **Appointments** to search/filter transactions and update their status: Pending, Confirmed, Completed, or Cancelled.
@@ -40,7 +40,9 @@ CareWell Clinic lets patients create a verified account, book appointments, trac
 
 ## OTP and password help
 
-OTP codes are emailed after registration. Enter the newest six-digit code before it expires. If it does not arrive, check Spam/Junk and use **Resend code**. **Forgot Password** sends a secure recovery email; follow that message to set a new password.
+OTP codes are emailed after registration and every login. Enter the newest six-digit code before it expires. If it does not arrive, check Spam/Junk and use **Resend code**. **Forgot Password** sends a secure recovery email; follow that message to set a new password.
+
+For Supabase email delivery, configure the **Confirm signup** and **Magic Link** email templates to include `{{ .Token }}` so the email contains a code. Supabase's hosted email OTP length defaults to six digits; ensure it remains set to six. The built-in email sender may limit delivery, so configure custom SMTP for regular external users.
 
 ## Typical scenarios
 

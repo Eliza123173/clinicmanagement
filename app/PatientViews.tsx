@@ -32,7 +32,7 @@ export function MyAppointments({ patientName, email }: { patientName: string; em
     if (!confirm("Are you sure you want to cancel this appointment?")) return;
     setCancelling(a.id);
     await updateAppointment(a.id, { status: "Cancelled", cancelled_by: "Patient" });
-    await sendNotification("admin@carewell.com", "Appointment Cancelled",
+    await sendNotification("elizcayampat@gmail.com", "Appointment Cancelled",
       `${patientName} cancelled their appointment with ${a.doctor} on ${a.date}.`, "warning");
     await logActivity("Cancel Appointment", patientName, "Patient", `${a.date} ${a.time} with ${a.doctor}`, a.doctor);
     setCancelling("");
