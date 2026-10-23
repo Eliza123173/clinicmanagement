@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { Av, St, Loading, Alert, PageHeader } from "./ui";
-import { getDoctors, getServices, getSchedules, isSlotAvailable, addAppointment, sendNotification, logActivity, Doctor, Service } from "./supabase";
+import { getDoctors, getServices, getSchedules, isSlotAvailable, addAppointment, sendNotification, logActivity, Doctor, Service, Schedule } from "./supabase";
 
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 const DAYS_SHORT = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
@@ -84,7 +84,7 @@ export function BookAppointment({ preDoctor, patientName, patientEmail, onBooked
   const [selSlot, setSelSlot] = useState("");
   const [reason, setReason] = useState("");
   const [slots, setSlots] = useState<string[]>([]);
-  const [schedules, setSchedules] = useState<{ day: string; start_time: string; end_time: string; slot_duration: number; is_available: boolean }[]>([]);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [takenSlots, setTakenSlots] = useState<string[]>([]);
   const [availDays, setAvailDays] = useState<string[]>([]);
   const [scheduleLoading, setScheduleLoading] = useState(false);
@@ -114,7 +114,7 @@ export function BookAppointment({ preDoctor, patientName, patientEmail, onBooked
         return;
       }
       const doctorKey = normalizeDoctorName(selDoc.name);
-      const scheds = ((r.data ?? []) as typeof schedules).filter(s => normalizeDoctorName(s.doctor) === doctorKey);
+      const scheds = ((r.data ?? []) as Schedule[]).filter(s => normalizeDoctorName(s.doctor) === doctorKey);
       setSchedules(scheds);
       setAvailDays([...new Set(scheds.filter(s => s.is_available && genSlots(s.start_time, s.end_time, s.slot_duration || 30).length > 0).map(s => normalizeDay(s.day)))]);
       setSelDate("");
